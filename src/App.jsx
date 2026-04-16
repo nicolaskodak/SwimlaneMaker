@@ -1,15 +1,18 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { 
-  Plus, 
-  X, 
-  Settings, 
-  Trash2, 
-  Edit3, 
-  Link as LinkIcon, 
-  Move, 
+import {
+  Plus,
+  X,
+  Settings,
+  Trash2,
+  Edit3,
+  Link as LinkIcon,
+  Move,
   MoreHorizontal,
   AlertTriangle,
-  Sliders
+  Sliders,
+  Download,
+  Upload,
+  Camera
 } from 'lucide-react';
 
 // --- Bauhaus palette ---
@@ -17,38 +20,44 @@ const LANE_PALETTES = {
   red:    { bg: '#D02020', text: '#FFFFFF' },
   blue:   { bg: '#1040C0', text: '#FFFFFF' },
   yellow: { bg: '#F0C020', text: '#121212' },
+  black:  { bg: '#121212', text: '#FFFFFF' },
 };
-const LANE_COLOR_KEYS = ['red', 'blue', 'yellow'];
+const LANE_COLOR_KEYS = ['red', 'blue', 'yellow', 'black'];
 
 // --- Components ---
 
 const App = () => {
   // --- State ---
   const [lanes, setLanes] = useState([
-    { id: 'dept-1', title: '業務部', color: 'red' },
-    { id: 'dept-2', title: '技術部', color: 'blue' },
-    { id: 'dept-3', title: '管理部', color: 'yellow' },
+    { id: 'dept-1', title: '專案負責人', color: 'red' },
+    { id: 'dept-2', title: '行政營運', color: 'blue' },
+    { id: 'dept-3', title: '現場執行 / 志工', color: 'yellow' },
+    { id: 'dept-4', title: '主管 / 外部利害關係人', color: 'black' },
   ]);
 
   const [nodes, setNodes] = useState([
-    { id: 'node-1', laneId: 'dept-1', title: '客戶需求', content: '接收來自客戶的初步需求信件', rank: 0, type: 'process', dataIds: ['asset-1'] },
-    { id: 'node-2', laneId: 'dept-2', title: '技術評估', content: '評估開發可行性與時程', rank: 0, type: 'process', dataIds: [] },
-    { id: 'node-3', laneId: 'dept-1', title: '報價單製作', content: '根據評估結果製作報價單', rank: 1, type: 'process', dataIds: ['asset-2'] },
-    { id: 'node-4', laneId: 'dept-3', title: '主管審核', content: '是否通過？', rank: 0, type: 'decision', dataIds: [] },
+    { id: 'node-1', laneId: 'dept-1', title: '活動前規劃', content: '活動前建立報名與規劃資料',             rank: 0, type: 'process', dataIds: ['asset-1', 'asset-2'] },
+    { id: 'node-2', laneId: 'dept-3', title: '現場蒐集', content: '活動中蒐集簽到、照片、紀錄、問卷',      rank: 0, type: 'process', dataIds: ['asset-3', 'asset-4', 'asset-5'] },
+    { id: 'node-3', laneId: 'dept-2', title: '資料彙整', content: '活動後彙整各種資料',                     rank: 0, type: 'process', dataIds: ['asset-3', 'asset-4', 'asset-5'] },
+    { id: 'node-4', laneId: 'dept-1', title: '成果報告', content: '產出成果報告草稿',                       rank: 1, type: 'process', dataIds: ['asset-6'] },
+    { id: 'node-5', laneId: 'dept-4', title: '檢視與後續', content: '提供主管 / 捐助方檢視與後續使用',     rank: 0, type: 'process', dataIds: ['asset-6'] },
   ]);
 
   const [connections, setConnections] = useState([
-    { from: 'node-1', to: 'node-2', id: 'c1', label: '' }, // 橫向
-    { from: 'node-1', to: 'node-3', id: 'c-vertical-test', label: '' }, // 垂直測試
-    { from: 'node-2', to: 'node-3', id: 'c2', label: '' }, // 橫向回流
-    { from: 'node-3', to: 'node-4', id: 'c3', label: '' }, // 橫向
+    { from: 'node-1', to: 'node-2', id: 'c1', label: '' },
+    { from: 'node-2', to: 'node-3', id: 'c2', label: '' },
+    { from: 'node-3', to: 'node-4', id: 'c3', label: '' },
+    { from: 'node-4', to: 'node-5', id: 'c4', label: '' },
   ]);
 
   // Data Assets (Feature 1)
   const [dataAssets, setDataAssets] = useState([
-    { id: 'asset-1', name: '客戶需求書', color: 'red' },
-    { id: 'asset-2', name: '技術規格書', color: 'blue' },
-    { id: 'asset-3', name: '報價模板', color: 'yellow' },
+    { id: 'asset-1', name: '報名表',     color: 'red' },
+    { id: 'asset-2', name: '規劃文件',   color: 'blue' },
+    { id: 'asset-3', name: '簽到表',     color: 'yellow' },
+    { id: 'asset-4', name: '照片 / 紀錄', color: 'red' },
+    { id: 'asset-5', name: '問卷',       color: 'blue' },
+    { id: 'asset-6', name: '成果報告',   color: 'yellow' },
   ]);
   const [newAssetName, setNewAssetName] = useState('');
 
@@ -78,6 +87,8 @@ const App = () => {
 
   // Refs for SVG calculation
   const containerRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [isCapturing, setIsCapturing] = useState(false);
   const [lines, setLines] = useState([]);
   // 動態追蹤 SVG 畫布尺寸
   const [svgDimensions, setSvgDimensions] = useState({ width: 0, height: 0 });
@@ -342,6 +353,176 @@ const App = () => {
     setLabelDraft('');
   };
 
+  // --- XML Export / Import ---
+  const escXml = (s) => String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  const triggerDownload = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const exportXML = () => {
+    const lanesXml = lanes.map(l =>
+      `    <lane id="${escXml(l.id)}" title="${escXml(l.title)}" color="${escXml(l.color)}" />`
+    ).join('\n');
+
+    const nodesXml = nodes.map(n =>
+      `    <node id="${escXml(n.id)}" laneId="${escXml(n.laneId)}" rank="${n.rank}" type="${escXml(n.type || 'process')}" dataIds="${escXml((n.dataIds || []).join(','))}">
+      <title>${escXml(n.title)}</title>
+      <content>${escXml(n.content)}</content>
+    </node>`
+    ).join('\n');
+
+    const connsXml = connections.map(c =>
+      `    <connection id="${escXml(c.id)}" from="${escXml(c.from)}" to="${escXml(c.to)}" label="${escXml(c.label || '')}" />`
+    ).join('\n');
+
+    const assetsXml = dataAssets.map(a =>
+      `    <asset id="${escXml(a.id)}" name="${escXml(a.name)}" color="${escXml(a.color)}" />`
+    ).join('\n');
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<flowchart version="1">
+  <settings>
+    <curveIntensity>${curveIntensity}</curveIntensity>
+    <lineColor>${escXml(lineColor)}</lineColor>
+  </settings>
+  <lanes>
+${lanesXml}
+  </lanes>
+  <nodes>
+${nodesXml}
+  </nodes>
+  <connections>
+${connsXml}
+  </connections>
+  <dataAssets>
+${assetsXml}
+  </dataAssets>
+</flowchart>
+`;
+
+    const blob = new Blob([xml], { type: 'application/xml;charset=utf-8' });
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    triggerDownload(blob, `flowchart-${stamp}.xml`);
+  };
+
+  const triggerImport = () => fileInputRef.current?.click();
+
+  const handleImportFile = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const text = String(evt.target?.result || '');
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'application/xml');
+        if (doc.querySelector('parsererror')) {
+          alert('XML 解析失敗，請確認檔案格式。');
+          return;
+        }
+
+        const root = doc.querySelector('flowchart');
+        if (!root) {
+          alert('找不到 <flowchart> 根節點。');
+          return;
+        }
+
+        const ci = doc.querySelector('flowchart > settings > curveIntensity')?.textContent;
+        const lc = doc.querySelector('flowchart > settings > lineColor')?.textContent;
+
+        const newLanes = Array.from(doc.querySelectorAll('flowchart > lanes > lane')).map(l => ({
+          id: l.getAttribute('id'),
+          title: l.getAttribute('title') || '',
+          color: l.getAttribute('color') || 'yellow',
+        }));
+
+        const newNodes = Array.from(doc.querySelectorAll('flowchart > nodes > node')).map(n => ({
+          id: n.getAttribute('id'),
+          laneId: n.getAttribute('laneId'),
+          rank: parseInt(n.getAttribute('rank') || '0', 10),
+          type: n.getAttribute('type') || 'process',
+          dataIds: (n.getAttribute('dataIds') || '').split(',').filter(Boolean),
+          title: n.querySelector('title')?.textContent || '',
+          content: n.querySelector('content')?.textContent || '',
+        }));
+
+        const newConnections = Array.from(doc.querySelectorAll('flowchart > connections > connection')).map(c => ({
+          id: c.getAttribute('id'),
+          from: c.getAttribute('from'),
+          to: c.getAttribute('to'),
+          label: c.getAttribute('label') || '',
+        }));
+
+        const newAssets = Array.from(doc.querySelectorAll('flowchart > dataAssets > asset')).map(a => ({
+          id: a.getAttribute('id'),
+          name: a.getAttribute('name') || '',
+          color: a.getAttribute('color') || 'yellow',
+        }));
+
+        if (ci) setCurveIntensity(parseFloat(ci) || 0.25);
+        if (lc) setLineColor(lc);
+        setLanes(newLanes);
+        setNodes(newNodes);
+        setConnections(newConnections);
+        setDataAssets(newAssets);
+      } catch (err) {
+        alert('匯入失敗：' + (err?.message || err));
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+  };
+
+  // --- Full-flowchart PNG capture ---
+  const captureImage = async () => {
+    const el = containerRef.current;
+    if (!el) return;
+    const prevScrollLeft = el.scrollLeft;
+    const prevScrollTop = el.scrollTop;
+    try {
+      setIsCapturing(true);
+      // 重置捲動，避免截圖上方被裁掉
+      el.scrollLeft = 0;
+      el.scrollTop = 0;
+      // 等兩個 RAF 確保 React 完成重渲染（切換 foreignObject → <text>）與 scroll 落定
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      // modern-screenshot 走 DOM → SVG foreignObject → raster，交給瀏覽器原生渲染
+      // 不自己解析 CSS，可避開 Tailwind v4 的 CSS 變數 / subgrid / oklch 問題
+      const { domToBlob } = await import('modern-screenshot');
+      const blob = await domToBlob(el, {
+        width: el.scrollWidth,
+        height: el.scrollHeight,
+        backgroundColor: '#F0F0F0',
+        scale: 2,
+        type: 'image/png',
+      });
+
+      if (blob) {
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        triggerDownload(blob, `flowchart-${stamp}.png`);
+      }
+    } catch (err) {
+      alert('截圖失敗：' + (err?.message || err));
+    } finally {
+      el.scrollLeft = prevScrollLeft;
+      el.scrollTop = prevScrollTop;
+      setIsCapturing(false);
+    }
+  };
+
   const handleNodeClick = (node) => {
     if (isConnectMode) {
       if (!connectSource) {
@@ -480,6 +661,40 @@ const App = () => {
               連接模式 {connectSource && '(目標?)'}
             </button>
           </div>
+
+          {/* 檔案操作 — 匯出 / 匯入 / 截圖 */}
+          <div className="flex border-2 border-[#121212] shadow-[4px_4px_0px_0px_#121212]">
+            <button
+              onClick={exportXML}
+              title="匯出 XML"
+              className="w-10 h-10 flex items-center justify-center bg-white text-[#121212] hover:bg-[#F0C020] transition-colors"
+            >
+              <Download size={16} strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={triggerImport}
+              title="匯入 XML"
+              className="w-10 h-10 flex items-center justify-center bg-white text-[#121212] hover:bg-[#F0C020] transition-colors border-l-2 border-[#121212]"
+            >
+              <Upload size={16} strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={captureImage}
+              title="匯出完整流程圖 PNG"
+              disabled={isCapturing}
+              className="w-10 h-10 flex items-center justify-center bg-white text-[#121212] hover:bg-[#F0C020] transition-colors border-l-2 border-[#121212] disabled:bg-[#E0E0E0] disabled:cursor-wait"
+            >
+              <Camera size={16} strokeWidth={2.5} />
+            </button>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xml,application/xml,text/xml"
+            onChange={handleImportFile}
+            className="hidden"
+          />
 
           <button
             onClick={addLane}
@@ -640,48 +855,76 @@ const App = () => {
                   style={{ opacity: hovered ? 0.95 : 0.45 }}
                   className="transition-all duration-200 ease-out drop-shadow-sm pointer-events-none"
                 />
-                {/* 連線標籤 (Feature 2a) — 用 foreignObject 內嵌 HTML 便於輸入 */}
-                <foreignObject
-                  x={(line.midX ?? 0) - 56}
-                  y={(line.midY ?? 0) - 16}
-                  width="112"
-                  height="32"
-                  style={{ overflow: 'visible', pointerEvents: 'none' }}
-                >
-                  <div
-                    xmlns="http://www.w3.org/1999/xhtml"
-                    className="w-full h-full flex items-center justify-center"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {isEditingThis ? (
-                      <input
-                        autoFocus
-                        value={labelDraft}
-                        onChange={(e) => setLabelDraft(e.target.value)}
-                        onBlur={commitLabel}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') { e.preventDefault(); commitLabel(); }
-                          if (e.key === 'Escape') { setEditingLabelFor(null); setLabelDraft(''); }
-                        }}
-                        placeholder="Y / N"
-                        className="px-2 py-0.5 border-2 border-[#121212] bg-[#F0C020] text-xs font-black uppercase tracking-widest text-center w-20 outline-none"
-                        style={{ pointerEvents: 'auto' }}
+                {/* 連線標籤 (Feature 2a) — 截圖模式用 SVG <text> 以確保 rasterize 正確 */}
+                {isCapturing ? (
+                  hasLabel && (
+                    <g>
+                      <rect
+                        x={(line.midX ?? 0) - (conn.label.length * 4 + 8)}
+                        y={(line.midY ?? 0) - 9}
+                        width={conn.label.length * 8 + 16}
+                        height={18}
+                        fill="#F0C020"
+                        stroke="#121212"
+                        strokeWidth={2}
                       />
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); beginEditLabel(line.id); }}
-                        className={`px-2 py-0.5 border-2 border-[#121212] text-[10px] font-black uppercase tracking-widest transition-all
-                          ${hasLabel
-                            ? 'bg-[#F0C020] text-[#121212] shadow-[2px_2px_0px_0px_#121212] hover:-translate-y-0.5'
-                            : 'bg-white text-[#121212]/40 hover:text-[#121212] hover:bg-[#F0C020]'}`}
-                        style={{ pointerEvents: 'auto' }}
+                      <text
+                        x={line.midX ?? 0}
+                        y={(line.midY ?? 0) + 4}
+                        textAnchor="middle"
+                        fontSize={11}
+                        fontWeight={900}
+                        fill="#121212"
+                        fontFamily="Outfit, sans-serif"
+                        style={{ letterSpacing: '0.1em', textTransform: 'uppercase' }}
                       >
-                        {hasLabel ? conn.label : '+'}
-                      </button>
-                    )}
-                  </div>
-                </foreignObject>
+                        {conn.label}
+                      </text>
+                    </g>
+                  )
+                ) : (
+                  <foreignObject
+                    x={(line.midX ?? 0) - 56}
+                    y={(line.midY ?? 0) - 16}
+                    width="112"
+                    height="32"
+                    style={{ overflow: 'visible', pointerEvents: 'none' }}
+                  >
+                    <div
+                      xmlns="http://www.w3.org/1999/xhtml"
+                      className="w-full h-full flex items-center justify-center"
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {isEditingThis ? (
+                        <input
+                          autoFocus
+                          value={labelDraft}
+                          onChange={(e) => setLabelDraft(e.target.value)}
+                          onBlur={commitLabel}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); commitLabel(); }
+                            if (e.key === 'Escape') { setEditingLabelFor(null); setLabelDraft(''); }
+                          }}
+                          placeholder="Y / N"
+                          className="px-2 py-0.5 border-2 border-[#121212] bg-[#F0C020] text-xs font-black uppercase tracking-widest text-center w-20 outline-none"
+                          style={{ pointerEvents: 'auto' }}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); beginEditLabel(line.id); }}
+                          className={`px-2 py-0.5 border-2 border-[#121212] text-[10px] font-black uppercase tracking-widest transition-all
+                            ${hasLabel
+                              ? 'bg-[#F0C020] text-[#121212] shadow-[2px_2px_0px_0px_#121212] hover:-translate-y-0.5'
+                              : 'bg-white text-[#121212]/40 hover:text-[#121212] hover:bg-[#F0C020]'}`}
+                          style={{ pointerEvents: 'auto' }}
+                        >
+                          {hasLabel ? conn.label : '+'}
+                        </button>
+                      )}
+                    </div>
+                  </foreignObject>
+                )}
               </React.Fragment>
             );
           })}
@@ -691,7 +934,7 @@ const App = () => {
         <div
           className="grid min-h-full min-w-max p-8 gap-8 relative"
           style={{
-            gridTemplateColumns: `repeat(${lanes.length}, 20rem) 4rem`,
+            gridTemplateColumns: `repeat(${lanes.length}, 20rem)${isCapturing ? '' : ' 4rem'}`,
             gridTemplateRows: `auto repeat(${Math.max(occupiedLevels.length, 1)}, auto) auto`,
           }}
         >
@@ -715,24 +958,26 @@ const App = () => {
                 style={{ gridRow: 1, backgroundColor: palette.bg, color: palette.text }}
                 className="p-4 border-b-4 border-[#121212] flex justify-between items-center group"
               >
-                <h3 className="font-black uppercase tracking-tighter text-lg leading-none">{lane.title}</h3>
-                <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => {
-                        const newTitle = prompt('修改部門名稱', lane.title);
-                        if(newTitle) setLanes(lanes.map(l => l.id === lane.id ? {...l, title: newTitle} : l));
-                    }}
-                    className="w-7 h-7 flex items-center justify-center bg-white border-2 border-[#121212] text-[#121212] hover:bg-[#F0C020] active:translate-x-[1px] active:translate-y-[1px] transition-all"
-                  >
-                    <Edit3 size={13} strokeWidth={2.5} />
-                  </button>
-                  <button
-                    onClick={() => removeLane(lane.id)}
-                    className="w-7 h-7 flex items-center justify-center bg-white border-2 border-[#121212] text-[#121212] hover:bg-[#D02020] hover:text-white active:translate-x-[1px] active:translate-y-[1px] transition-all"
-                  >
-                    <Trash2 size={13} strokeWidth={2.5} />
-                  </button>
-                </div>
+                <h3 className="font-black uppercase tracking-tighter text-lg leading-none whitespace-nowrap overflow-hidden text-ellipsis">{lane.title}</h3>
+                {!isCapturing && (
+                  <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                    <button
+                      onClick={() => {
+                          const newTitle = prompt('修改部門名稱', lane.title);
+                          if(newTitle) setLanes(lanes.map(l => l.id === lane.id ? {...l, title: newTitle} : l));
+                      }}
+                      className="w-7 h-7 flex items-center justify-center bg-white border-2 border-[#121212] text-[#121212] hover:bg-[#F0C020] active:translate-x-[1px] active:translate-y-[1px] transition-all"
+                    >
+                      <Edit3 size={13} strokeWidth={2.5} />
+                    </button>
+                    <button
+                      onClick={() => removeLane(lane.id)}
+                      className="w-7 h-7 flex items-center justify-center bg-white border-2 border-[#121212] text-[#121212] hover:bg-[#D02020] hover:text-white active:translate-x-[1px] active:translate-y-[1px] transition-all"
+                    >
+                      <Trash2 size={13} strokeWidth={2.5} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Level slots：每個 level 對應所有泳道共用的一列 */}
@@ -895,33 +1140,37 @@ const App = () => {
                 );
               })}
 
-              {/* Add Step：最後一列 */}
-              <div
-                style={{ gridRow: Math.max(occupiedLevels.length, 1) + 2 }}
-                className="px-4 pb-4 pt-2"
-              >
-                <button
-                  onClick={() => addNode(lane.id)}
-                  className="w-full py-3 border-2 border-dashed border-[#121212] rounded-none text-[#121212] hover:border-solid hover:bg-[#F0C020] transition-all flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest"
+              {/* Add Step：最後一列（截圖時隱藏） */}
+              {!isCapturing && (
+                <div
+                  style={{ gridRow: Math.max(occupiedLevels.length, 1) + 2 }}
+                  className="px-4 pb-4 pt-2"
                 >
-                  <Plus size={16} strokeWidth={3} />
-                  加入步驟
-                </button>
-              </div>
+                  <button
+                    onClick={() => addNode(lane.id)}
+                    className="w-full py-3 border-2 border-dashed border-[#121212] rounded-none text-[#121212] hover:border-solid hover:bg-[#F0C020] transition-all flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest"
+                  >
+                    <Plus size={16} strokeWidth={3} />
+                    加入步驟
+                  </button>
+                </div>
+              )}
             </div>
             );
           })}
 
-          <button
-            onClick={addLane}
-            style={{
-              gridColumn: lanes.length + 1,
-              gridRow: '1 / -1',
-            }}
-            className="flex flex-col items-center justify-center gap-2 border-4 border-dashed border-[#121212] rounded-none bg-white hover:bg-[#F0C020] text-[#121212] transition-all"
-          >
-            <Plus size={32} strokeWidth={3} />
-          </button>
+          {!isCapturing && (
+            <button
+              onClick={addLane}
+              style={{
+                gridColumn: lanes.length + 1,
+                gridRow: '1 / -1',
+              }}
+              className="flex flex-col items-center justify-center gap-2 border-4 border-dashed border-[#121212] rounded-none bg-white hover:bg-[#F0C020] text-[#121212] transition-all"
+            >
+              <Plus size={32} strokeWidth={3} />
+            </button>
+          )}
         </div>
       </main>
 
