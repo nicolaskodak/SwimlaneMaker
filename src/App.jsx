@@ -12,14 +12,22 @@ import {
   Sliders
 } from 'lucide-react';
 
+// --- Bauhaus palette ---
+const LANE_PALETTES = {
+  red:    { bg: '#D02020', text: '#FFFFFF' },
+  blue:   { bg: '#1040C0', text: '#FFFFFF' },
+  yellow: { bg: '#F0C020', text: '#121212' },
+};
+const LANE_COLOR_KEYS = ['red', 'blue', 'yellow'];
+
 // --- Components ---
 
 const App = () => {
   // --- State ---
   const [lanes, setLanes] = useState([
-    { id: 'dept-1', title: '業務部', color: 'bg-blue-50 border-blue-200 text-blue-800' },
-    { id: 'dept-2', title: '技術部', color: 'bg-purple-50 border-purple-200 text-purple-800' },
-    { id: 'dept-3', title: '管理部', color: 'bg-emerald-50 border-emerald-200 text-emerald-800' },
+    { id: 'dept-1', title: '業務部', color: 'red' },
+    { id: 'dept-2', title: '技術部', color: 'blue' },
+    { id: 'dept-3', title: '管理部', color: 'yellow' },
   ]);
 
   const [nodes, setNodes] = useState([
@@ -46,7 +54,7 @@ const App = () => {
   // Settings State
   const [showSettings, setShowSettings] = useState(false);
   const [curveIntensity, setCurveIntensity] = useState(0.25); // 預設入射角參數
-  const [lineColor, setLineColor] = useState('#94a3b8'); // 預設線條顏色
+  const [lineColor, setLineColor] = useState('#121212'); // 預設線條顏色
   
   // 追蹤正要被刪除的連線 ID
   const [connectionToDelete, setConnectionToDelete] = useState(null);
@@ -238,17 +246,10 @@ const App = () => {
 
   const addLane = () => {
     const id = `dept-${Date.now()}`;
-    const colors = [
-      'bg-blue-50 border-blue-200 text-blue-800',
-      'bg-purple-50 border-purple-200 text-purple-800', 
-      'bg-emerald-50 border-emerald-200 text-emerald-800',
-      'bg-amber-50 border-amber-200 text-amber-800',
-      'bg-rose-50 border-rose-200 text-rose-800'
-    ];
-    setLanes([...lanes, { 
-      id, 
-      title: '新部門', 
-      color: colors[lanes.length % colors.length] 
+    setLanes([...lanes, {
+      id,
+      title: '新部門',
+      color: LANE_COLOR_KEYS[lanes.length % LANE_COLOR_KEYS.length]
     }]);
     setTimeout(calculatePaths, 100);
   };
@@ -368,94 +369,101 @@ const App = () => {
 
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
-      
+    <div className="flex flex-col h-screen bg-[#F0F0F0] text-[#121212] overflow-hidden">
+
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm z-40 relative">
-        <div className="flex items-center gap-3">
-          <button 
+      <header className="bg-white border-b-4 border-[#121212] px-6 py-4 flex items-center justify-between z-40 relative">
+        <div className="flex items-center gap-4">
+          <button
             onClick={() => setShowSettings(!showSettings)}
-            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all shadow-md active:scale-95 ${showSettings ? 'bg-slate-800 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700'}`}
+            className={`w-12 h-12 rounded-none border-2 border-[#121212] flex items-center justify-center shadow-[4px_4px_0px_0px_#121212] hover:-translate-y-0.5 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all ${showSettings ? 'bg-[#121212] text-white' : 'bg-[#F0C020] text-[#121212]'}`}
           >
-            {showSettings ? <X size={24} /> : <Settings size={24} />}
+            {showSettings ? <X size={22} strokeWidth={3} /> : <Settings size={22} strokeWidth={2.5} />}
           </button>
 
+          {/* Geometric logo marks */}
+          <div className="hidden sm:flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded-full bg-[#D02020] border-2 border-[#121212]"></div>
+            <div className="w-4 h-4 rounded-none bg-[#1040C0] border-2 border-[#121212]"></div>
+            <div className="w-4 h-4 bg-[#F0C020] border-2 border-[#121212] rotate-45"></div>
+          </div>
+
           <div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">FlowArchitect</h1>
-            <p className="text-xs text-slate-500 font-medium">工作流程設計與管理系統</p>
+            <h1 className="text-xl sm:text-2xl font-black text-[#121212] uppercase tracking-tighter leading-none">FlowArchitect</h1>
+            <p className="text-[10px] sm:text-xs text-[#121212] font-bold uppercase tracking-widest mt-1">工作流程 / 設計與管理</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="bg-slate-100 rounded-lg p-1 flex gap-1 border border-slate-200">
-            <button 
+          <div className="flex border-2 border-[#121212] shadow-[4px_4px_0px_0px_#121212]">
+            <button
               onClick={() => { setIsConnectMode(false); setConnectSource(null); }}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${!isConnectMode ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:bg-slate-200'}`}
+              className={`px-3 py-2 text-sm font-bold uppercase tracking-wider transition-colors ${!isConnectMode ? 'bg-[#1040C0] text-white' : 'bg-white text-[#121212] hover:bg-[#E0E0E0]'}`}
             >
-              <Move size={16} className="inline mr-1.5" />
+              <Move size={16} className="inline mr-1.5" strokeWidth={2.5} />
               選取 / 拖曳
             </button>
-            <button 
+            <button
               onClick={() => setIsConnectMode(true)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${isConnectMode ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-slate-200'}`}
+              className={`px-3 py-2 text-sm font-bold uppercase tracking-wider transition-colors border-l-2 border-[#121212] ${isConnectMode ? 'bg-[#D02020] text-white' : 'bg-white text-[#121212] hover:bg-[#E0E0E0]'}`}
             >
-              <LinkIcon size={16} className="inline mr-1.5" />
-              連接模式 {connectSource && '(選擇目標...)'}
+              <LinkIcon size={16} className="inline mr-1.5" strokeWidth={2.5} />
+              連接模式 {connectSource && '(目標?)'}
             </button>
           </div>
 
-          <div className="h-6 w-px bg-slate-200 mx-2"></div>
-
-          <button 
+          <button
             onClick={addLane}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-medium transition-colors shadow-md active:scale-95"
+            className="flex items-center gap-2 px-4 py-2 bg-[#F0C020] hover:bg-[#F0C020]/90 text-[#121212] border-2 border-[#121212] text-sm font-bold uppercase tracking-wider shadow-[4px_4px_0px_0px_#121212] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
           >
-            <Plus size={16} />
-            新增部門泳道
+            <Plus size={16} strokeWidth={3} />
+            新增部門
           </button>
         </div>
 
         {/* Global Settings Dropdown Panel */}
         {showSettings && (
-          <div className="absolute top-full left-6 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 z-50 animate-in fade-in slide-in-from-top-4">
-            <div className="flex items-center gap-2 mb-4 text-slate-800 font-bold border-b border-slate-100 pb-2">
-              <Sliders size={18} />
+          <div className="absolute top-full left-6 mt-3 w-80 bg-white rounded-none shadow-[8px_8px_0px_0px_#121212] border-4 border-[#121212] p-5 z-50 animate-in fade-in slide-in-from-top-4">
+            <div className="flex items-center gap-2 mb-4 text-[#121212] font-black uppercase tracking-wider border-b-2 border-[#121212] pb-3">
+              <div className="w-7 h-7 bg-[#F0C020] border-2 border-[#121212] flex items-center justify-center">
+                <Sliders size={14} strokeWidth={3} />
+              </div>
               <span>全域設定</span>
             </div>
-            
-            <div className="space-y-4">
+
+            <div className="space-y-5">
               <div>
-                <label className="flex justify-between text-sm font-medium text-slate-600 mb-1">
-                  <span>曲線偏移 (入射角)</span>
-                  <span className="text-indigo-600">{curveIntensity.toFixed(2)}</span>
+                <label className="flex justify-between text-xs font-bold text-[#121212] uppercase tracking-widest mb-2">
+                  <span>曲線偏移</span>
+                  <span className="text-[#D02020] font-black">{curveIntensity.toFixed(2)}</span>
                 </label>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="0.8" 
-                  step="0.01" 
+                <input
+                  type="range"
+                  min="0"
+                  max="0.8"
+                  step="0.01"
                   value={curveIntensity}
                   onChange={(e) => setCurveIntensity(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                  className="w-full h-2 bg-[#E0E0E0] rounded-none appearance-none cursor-pointer accent-[#D02020] border-2 border-[#121212]"
                 />
-                <div className="flex justify-between text-xs text-slate-400 mt-1">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-[#121212]/60 mt-1">
                   <span>垂直</span>
                   <span>平滑</span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">
+                <label className="block text-xs font-bold text-[#121212] uppercase tracking-widest mb-2">
                   線條顏色
                 </label>
                 <div className="flex items-center gap-3">
-                  <input 
-                    type="color" 
+                  <input
+                    type="color"
                     value={lineColor}
                     onChange={(e) => setLineColor(e.target.value)}
-                    className="h-10 w-full rounded cursor-pointer border-0 p-0"
+                    className="h-10 w-full rounded-none cursor-pointer border-2 border-[#121212] p-0"
                   />
-                  <span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded text-slate-500">
+                  <span className="text-xs font-mono bg-[#F0C020] border-2 border-[#121212] px-2 py-1 text-[#121212] font-bold">
                     {lineColor}
                   </span>
                 </div>
@@ -570,10 +578,12 @@ const App = () => {
           }}
         >
 
-          {lanes.map((lane, laneIdx) => (
+          {lanes.map((lane, laneIdx) => {
+            const palette = LANE_PALETTES[lane.color] || LANE_PALETTES.yellow;
+            return (
             <div
               key={lane.id}
-              className="grid bg-slate-50/80 rounded-xl border border-slate-200 shadow-sm transition-colors hover:border-slate-300"
+              className="grid bg-white rounded-none border-4 border-[#121212] shadow-[8px_8px_0px_0px_#121212] transition-colors"
               style={{
                 gridColumn: laneIdx + 1,
                 gridRow: '1 / -1',
@@ -584,22 +594,25 @@ const App = () => {
             >
               {/* Lane Header: 第一列 */}
               <div
-                style={{ gridRow: 1 }}
-                className={`p-4 border-b border-slate-100 rounded-t-xl flex justify-between items-center group ${lane.color.replace('text-', 'bg-').replace('border-', '').split(' ')[0]} bg-opacity-20`}
+                style={{ gridRow: 1, backgroundColor: palette.bg, color: palette.text }}
+                className="p-4 border-b-4 border-[#121212] flex justify-between items-center group"
               >
-                <h3 className={`font-bold ${lane.color.split(' ').pop()}`}>{lane.title}</h3>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <h3 className="font-black uppercase tracking-tighter text-lg leading-none">{lane.title}</h3>
+                <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => {
                         const newTitle = prompt('修改部門名稱', lane.title);
                         if(newTitle) setLanes(lanes.map(l => l.id === lane.id ? {...l, title: newTitle} : l));
                     }}
-                    className="p-1 hover:bg-black/5 rounded"
+                    className="w-7 h-7 flex items-center justify-center bg-white border-2 border-[#121212] text-[#121212] hover:bg-[#F0C020] active:translate-x-[1px] active:translate-y-[1px] transition-all"
                   >
-                    <Edit3 size={14} className="text-slate-600" />
+                    <Edit3 size={13} strokeWidth={2.5} />
                   </button>
-                  <button onClick={() => removeLane(lane.id)} className="p-1 hover:bg-red-100 rounded text-red-500">
-                    <Trash2 size={14} />
+                  <button
+                    onClick={() => removeLane(lane.id)}
+                    className="w-7 h-7 flex items-center justify-center bg-white border-2 border-[#121212] text-[#121212] hover:bg-[#D02020] hover:text-white active:translate-x-[1px] active:translate-y-[1px] transition-all"
+                  >
+                    <Trash2 size={13} strokeWidth={2.5} />
                   </button>
                 </div>
               </div>
@@ -613,9 +626,11 @@ const App = () => {
                   <div
                     key={`slot-${lane.id}-${level}`}
                     style={{ gridRow: idx + 2 }}
-                    className="px-4 py-2 flex flex-col gap-4"
+                    className="px-4 py-3 flex flex-col gap-4"
                   >
-                    {slotNodes.map((node) => (
+                    {slotNodes.map((node, nodeIdx) => {
+                      const shapeIdx = (level + nodeIdx) % 3;
+                      return (
                       <div
                         key={node.id}
                         id={node.id}
@@ -628,26 +643,49 @@ const App = () => {
                         onClick={() => handleNodeClick(node)}
                         // 卡片：z-20 (最上層)
                         className={`
-                          relative p-4 rounded-lg border-2 shadow-sm transition-all cursor-pointer group bg-white z-20
-                          ${isConnectMode && connectSource?.id === node.id ? 'border-indigo-500 ring-2 ring-indigo-200 scale-105 z-30' : 'border-slate-200 hover:border-indigo-300 hover:shadow-md'}
-                          ${isConnectMode && connectSource && connectSource.id !== node.id ? 'hover:ring-2 hover:ring-green-200 hover:border-green-400' : ''}
+                          relative p-4 pr-6 rounded-none border-2 border-[#121212] transition-all cursor-pointer group bg-white z-20
+                          ${isConnectMode && connectSource?.id === node.id
+                            ? 'bg-[#F0C020] shadow-[6px_6px_0px_0px_#D02020] z-30'
+                            : 'shadow-[4px_4px_0px_0px_#121212] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_#121212]'}
+                          ${isConnectMode && connectSource && connectSource.id !== node.id ? 'hover:bg-[#F0C020]/40' : ''}
                         `}
                       >
-                        <div className="flex justify-between items-start mb-2">
-                           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">STEP {level + 1}</span>
+                        {/* Corner geometric decoration */}
+                        {shapeIdx === 0 && (
+                          <div
+                            className="absolute top-2 right-2 w-3 h-3 rounded-full border-2 border-[#121212]"
+                            style={{ backgroundColor: palette.bg }}
+                          />
+                        )}
+                        {shapeIdx === 1 && (
+                          <div
+                            className="absolute top-2 right-2 w-3 h-3 rounded-none border-2 border-[#121212]"
+                            style={{ backgroundColor: palette.bg }}
+                          />
+                        )}
+                        {shapeIdx === 2 && (
+                          <div
+                            className="absolute top-2 right-2 w-3 h-3 border-2 border-[#121212] rotate-45"
+                            style={{ backgroundColor: palette.bg }}
+                          />
+                        )}
+
+                        <div className="flex justify-between items-start mb-2 gap-2">
+                           <span className="text-[10px] font-black text-[#121212] uppercase tracking-[0.2em] bg-[#F0C020] border-2 border-[#121212] px-1.5 py-0.5">STEP {level + 1}</span>
                            {isConnectMode && connectSource?.id === node.id && (
-                             <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">來源</span>
+                             <span className="text-[10px] bg-[#D02020] text-white border-2 border-[#121212] px-1.5 py-0.5 font-black uppercase tracking-widest">來源</span>
                            )}
                         </div>
 
-                        <h4 className="font-bold text-slate-800 mb-1">{node.title}</h4>
-                        <p className="text-sm text-slate-500 line-clamp-2">{node.content}</p>
+                        <h4 className="font-black text-[#121212] mb-1 leading-tight">{node.title}</h4>
+                        <p className="text-sm text-[#121212]/75 line-clamp-2 font-medium leading-relaxed">{node.content}</p>
 
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <MoreHorizontal size={16} className="text-slate-400" />
+                        <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                           <MoreHorizontal size={14} className="text-[#121212]" strokeWidth={3} />
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -659,14 +697,15 @@ const App = () => {
               >
                 <button
                   onClick={() => addNode(lane.id)}
-                  className="w-full py-3 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                  className="w-full py-3 border-2 border-dashed border-[#121212] rounded-none text-[#121212] hover:border-solid hover:bg-[#F0C020] transition-all flex items-center justify-center gap-2 text-xs font-black uppercase tracking-widest"
                 >
-                  <Plus size={16} />
+                  <Plus size={16} strokeWidth={3} />
                   加入步驟
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
 
           <button
             onClick={addLane}
@@ -674,36 +713,36 @@ const App = () => {
               gridColumn: lanes.length + 1,
               gridRow: '1 / -1',
             }}
-            className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all"
+            className="flex flex-col items-center justify-center gap-2 border-4 border-dashed border-[#121212] rounded-none bg-white hover:bg-[#F0C020] text-[#121212] transition-all"
           >
-            <Plus size={24} />
+            <Plus size={32} strokeWidth={3} />
           </button>
         </div>
       </main>
 
       {/* Delete Connection Confirmation Modal */}
       {connectionToDelete && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="fixed inset-0 bg-[#121212]/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-none border-4 border-[#121212] shadow-[8px_8px_0px_0px_#D02020] w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-6 text-center">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-600">
-                <AlertTriangle size={24} />
+              <div className="w-14 h-14 bg-[#D02020] rounded-full border-4 border-[#121212] flex items-center justify-center mx-auto mb-4 text-white">
+                <AlertTriangle size={24} strokeWidth={3} />
               </div>
-              <h3 className="font-bold text-lg text-slate-800 mb-2">刪除連接線？</h3>
-              <p className="text-sm text-slate-500 mb-6">
+              <h3 className="font-black uppercase tracking-tighter text-2xl text-[#121212] mb-2">刪除連接線</h3>
+              <p className="text-sm text-[#121212]/80 font-medium mb-6 leading-relaxed">
                 您確定要移除這條流程連接線嗎？此動作無法復原。
               </p>
-              
+
               <div className="flex gap-3 justify-center">
-                <button 
+                <button
                   onClick={() => setConnectionToDelete(null)}
-                  className="px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg font-medium text-sm transition-colors w-full"
+                  className="px-4 py-2 bg-white border-2 border-[#121212] hover:bg-[#E0E0E0] text-[#121212] font-bold uppercase tracking-wider text-sm shadow-[3px_3px_0px_0px_#121212] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all w-full"
                 >
                   取消
                 </button>
-                <button 
+                <button
                   onClick={confirmDeleteConnection}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium text-sm shadow-md transition-colors w-full"
+                  className="px-4 py-2 bg-[#D02020] hover:bg-[#D02020]/90 text-white border-2 border-[#121212] font-bold uppercase tracking-wider text-sm shadow-[3px_3px_0px_0px_#121212] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all w-full"
                 >
                   確認刪除
                 </button>
@@ -715,53 +754,56 @@ const App = () => {
 
       {/* Edit Modal */}
       {isEditing && selectedNode && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="font-bold text-lg text-slate-800">編輯節點</h3>
-              <button onClick={() => setIsEditing(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={20} />
+        <div className="fixed inset-0 bg-[#121212]/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-none border-4 border-[#121212] shadow-[8px_8px_0px_0px_#1040C0] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-[#1040C0] text-white px-6 py-4 border-b-4 border-[#121212] flex justify-between items-center">
+              <h3 className="font-black uppercase tracking-tighter text-xl leading-none">編輯節點</h3>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="w-8 h-8 flex items-center justify-center bg-white text-[#121212] border-2 border-[#121212] hover:bg-[#D02020] hover:text-white transition-colors"
+              >
+                <X size={16} strokeWidth={3} />
               </button>
             </div>
-            
-            <div className="p-6 space-y-4">
+
+            <div className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">流程標題</label>
-                <input 
-                  type="text" 
+                <label className="block text-xs font-bold text-[#121212] uppercase tracking-widest mb-2">流程標題</label>
+                <input
+                  type="text"
                   value={editFormData.title}
                   onChange={(e) => setEditFormData({...editFormData, title: e.target.value})}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">詳細內容</label>
-                <textarea 
-                  rows={4}
-                  value={editFormData.content}
-                  onChange={(e) => setEditFormData({...editFormData, content: e.target.value})}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none"
+                  className="w-full px-4 py-2 border-2 border-[#121212] rounded-none bg-white font-medium focus:outline-none focus:shadow-[3px_3px_0px_0px_#1040C0] transition-all"
                 />
               </div>
 
-              <div className="flex items-center justify-between pt-4 mt-2 border-t border-slate-100">
-                <button 
+              <div>
+                <label className="block text-xs font-bold text-[#121212] uppercase tracking-widest mb-2">詳細內容</label>
+                <textarea
+                  rows={4}
+                  value={editFormData.content}
+                  onChange={(e) => setEditFormData({...editFormData, content: e.target.value})}
+                  className="w-full px-4 py-2 border-2 border-[#121212] rounded-none bg-white font-medium focus:outline-none focus:shadow-[3px_3px_0px_0px_#1040C0] transition-all resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-4 mt-2 border-t-2 border-[#121212]">
+                <button
                   onClick={() => deleteNode(selectedNode.id)}
-                  className="flex items-center text-red-500 hover:text-red-700 text-sm font-medium px-2 py-1 hover:bg-red-50 rounded"
+                  className="flex items-center gap-1.5 text-[#D02020] hover:text-white hover:bg-[#D02020] text-xs font-black uppercase tracking-widest px-3 py-2 border-2 border-[#D02020] transition-all"
                 >
-                  <Trash2 size={16} className="mr-1.5" /> 刪除節點
+                  <Trash2 size={14} strokeWidth={2.5} /> 刪除節點
                 </button>
                 <div className="flex gap-3">
-                  <button 
+                  <button
                     onClick={() => setIsEditing(false)}
-                    className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg font-medium text-sm transition-colors"
+                    className="px-4 py-2 bg-white text-[#121212] border-2 border-[#121212] hover:bg-[#E0E0E0] font-bold uppercase tracking-wider text-xs shadow-[3px_3px_0px_0px_#121212] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
                   >
                     取消
                   </button>
-                  <button 
+                  <button
                     onClick={handleSaveEdit}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium text-sm shadow-md transition-colors"
+                    className="px-4 py-2 bg-[#1040C0] hover:bg-[#1040C0]/90 text-white border-2 border-[#121212] font-bold uppercase tracking-wider text-xs shadow-[3px_3px_0px_0px_#121212] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all"
                   >
                     儲存變更
                   </button>
@@ -774,15 +816,18 @@ const App = () => {
 
       {/* Helper Toast for Connect Mode */}
       {isConnectMode && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full shadow-lg z-50 flex items-center gap-3 animate-bounce-in">
-          <div className={`w-3 h-3 rounded-full ${connectSource ? 'bg-green-400 animate-pulse' : 'bg-slate-500'}`}></div>
-          <span className="text-sm font-medium">
-            {connectSource 
-              ? `已選擇「${connectSource.title}」，請點擊另一個節點進行連接` 
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#121212] text-white px-5 py-3 rounded-none border-4 border-[#121212] shadow-[6px_6px_0px_0px_#F0C020] z-50 flex items-center gap-3">
+          <div className={`w-4 h-4 border-2 border-white ${connectSource ? 'bg-[#F0C020] rounded-full animate-pulse' : 'bg-[#D02020] rounded-none'}`}></div>
+          <span className="text-xs font-bold uppercase tracking-widest">
+            {connectSource
+              ? `來源：${connectSource.title} / 選擇目標`
               : '請選擇起點節點'}
           </span>
-          <button onClick={() => { setIsConnectMode(false); setConnectSource(null); }} className="ml-2 hover:bg-slate-700 rounded-full p-1">
-            <X size={14} />
+          <button
+            onClick={() => { setIsConnectMode(false); setConnectSource(null); }}
+            className="ml-2 w-6 h-6 flex items-center justify-center bg-white text-[#121212] border-2 border-white hover:bg-[#D02020] hover:text-white transition-colors"
+          >
+            <X size={12} strokeWidth={3} />
           </button>
         </div>
       )}
