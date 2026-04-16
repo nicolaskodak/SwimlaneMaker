@@ -67,6 +67,67 @@ const App = () => {
   const markerId = `arrowhead-${uniqueId}`;
   const markerHoverId = `arrowhead-hover-${uniqueId}`;
 
+  // 以拓撲排序計算每個節點的 level，用來保證「後面的步驟」一律位於「前面的步驟」下方
+  const nodeLevels = useMemo(() => {
+    const levels = new Map();
+    const inDegree = new Map();
+    const outgoing = new Map();
+
+    nodes.forEach(n => {
+      inDegree.set(n.id, 0);
+      outgoing.set(n.id, []);
+    });
+
+    connections.forEach(c => {
+      if (inDegree.has(c.to) && outgoing.has(c.from) && c.from !== c.to) {
+        inDegree.set(c.to, inDegree.get(c.to) + 1);
+        outgoing.get(c.from).push(c.to);
+      }
+    });
+
+    const queue = [];
+    inDegree.forEach((deg, id) => {
+      if (deg === 0) {
+        queue.push(id);
+        levels.set(id, 0);
+      }
+    });
+
+    while (queue.length > 0) {
+      const id = queue.shift();
+      const curLevel = levels.get(id);
+      (outgoing.get(id) || []).forEach(nextId => {
+        const nextLevel = curLevel + 1;
+        if (!levels.has(nextId) || levels.get(nextId) < nextLevel) {
+          levels.set(nextId, nextLevel);
+        }
+        inDegree.set(nextId, inDegree.get(nextId) - 1);
+        if (inDegree.get(nextId) === 0) {
+          queue.push(nextId);
+        }
+      });
+    }
+
+    // 若有循環連線無法拓撲排序，統一放到最末列
+    const existing = Array.from(levels.values());
+    const fallback = existing.length > 0 ? Math.max(...existing) + 1 : 0;
+    nodes.forEach(n => {
+      if (!levels.has(n.id)) levels.set(n.id, fallback);
+    });
+
+    return levels;
+  }, [nodes, connections]);
+
+  // 所有被佔用的 level，由小到大排序；用來產生 grid 列數
+  const occupiedLevels = useMemo(() => {
+    const s = new Set();
+    nodes.forEach(n => {
+      const lv = nodeLevels.get(n.id);
+      if (lv !== undefined) s.add(lv);
+    });
+    return Array.from(s).sort((a, b) => a - b);
+  }, [nodes, nodeLevels]);
+
   // --- Helpers ---
 
   // Calculate SVG paths
@@ -407,105 +468,128 @@ const App = () => {
       {/* Main Workspace */}
       <main className="flex-1 overflow-auto relative" ref={containerRef}>
         
-        {/* SVG Connection Layer - z-10 (中間層) */}
-        <svg 
+        {/* 點擊偵測層 (z-10, 卡片下方) — 只在卡片之間的空白處可觸發 hover 與刪除 */}
+        <svg
           className="absolute top-0 left-0 pointer-events-none z-10 overflow-visible"
-          style={{ 
-            width: svgDimensions.width || '100%', 
-            height: svgDimensions.height || '100%' 
+          style={{
+            width: svgDimensions.width || '100%',
+            height: svgDimensions.height || '100%'
+          }}
+        >
+          {lines.map(line => (
+            <path
+              key={line.id}
+              d={line.path}
+              stroke="transparent"
+              strokeWidth="15"
+              fill="none"
+              className="cursor-pointer pointer-events-auto"
+              onMouseEnter={() => setHoveredConnectionId(line.id)}
+              onMouseLeave={() => setHoveredConnectionId(null)}
+              onClick={(e) => {
+                e.stopPropagation();
+                requestDeleteConnection(line.id);
+              }}
+            >
+              <title>點擊以刪除連接</title>
+            </path>
+          ))}
+        </svg>
+
+        {/* 視覺呈現層 (z-40, 卡片上方) — 半透明，讓卡片內容透出 */}
+        <svg
+          className="absolute top-0 left-0 pointer-events-none z-40 overflow-visible"
+          style={{
+            width: svgDimensions.width || '100%',
+            height: svgDimensions.height || '100%'
           }}
         >
           <defs>
-            <marker 
-              id={markerId} 
+            <marker
+              id={markerId}
               viewBox="0 0 14 14"
-              markerWidth="10" 
-              markerHeight="10" 
-              refX="11" 
-              refY="6" 
+              markerWidth="10"
+              markerHeight="10"
+              refX="11"
+              refY="6"
               orient="auto"
             >
-              <path 
-                d="M 1 1 L 11 6 L 1 11" 
-                fill="none" 
-                stroke={lineColor} 
-                strokeWidth="2.5" 
+              <path
+                d="M 1 1 L 11 6 L 1 11"
+                fill="none"
+                stroke={lineColor}
+                strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </marker>
-            
-            <marker 
-              id={markerHoverId} 
+
+            <marker
+              id={markerHoverId}
               viewBox="0 0 14 14"
-              markerWidth="10" 
-              markerHeight="10" 
-              refX="11" 
-              refY="6" 
+              markerWidth="10"
+              markerHeight="10"
+              refX="11"
+              refY="6"
               orient="auto"
             >
-              <path 
-                d="M 1 1 L 11 6 L 1 11" 
-                fill="none" 
-                stroke="#ef4444" 
-                strokeWidth="2.5" 
+              <path
+                d="M 1 1 L 11 6 L 1 11"
+                fill="none"
+                stroke="#ef4444"
+                strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </marker>
           </defs>
 
-          {lines.map(line => (
-            <g 
-              key={line.id} 
-              className="group"
-              onMouseEnter={() => setHoveredConnectionId(line.id)}
-              onMouseLeave={() => setHoveredConnectionId(null)}
-            >
-              <path 
-                d={line.path} 
-                stroke={lineColor} 
-                strokeWidth="2" 
-                fill="none" 
-                markerEnd={`url(#${hoveredConnectionId === line.id ? markerHoverId : markerId})`}
-                className="transition-all duration-200 ease-out drop-shadow-sm pointer-events-none opacity-40
-                           group-hover:stroke-red-500 group-hover:stroke-[3px] group-hover:opacity-100"
+          {lines.map(line => {
+            const hovered = hoveredConnectionId === line.id;
+            return (
+              <path
+                key={line.id}
+                d={line.path}
+                stroke={hovered ? '#ef4444' : lineColor}
+                strokeWidth={hovered ? 3 : 2}
+                fill="none"
+                markerEnd={`url(#${hovered ? markerHoverId : markerId})`}
+                style={{ opacity: hovered ? 0.95 : 0.45 }}
+                className="transition-all duration-200 ease-out drop-shadow-sm pointer-events-none"
               />
-
-              <path 
-                d={line.path} 
-                stroke="transparent" 
-                strokeWidth="15" 
-                fill="none" 
-                className="cursor-pointer pointer-events-auto" 
-                onClick={(e) => {
-                  e.stopPropagation(); 
-                  requestDeleteConnection(line.id);
-                }}
-              >
-                <title>點擊以刪除連接</title>
-              </path>
-            </g>
-          ))}
+            );
+          })}
         </svg>
 
-        {/* Swimlane Grid - z-auto (底層背景) */}
-        <div className="flex min-h-full min-w-max p-8 gap-8 relative">
-          
-          {lanes.map((lane) => (
-            <div 
-              key={lane.id} 
-              // 修改：移除 backdrop-blur-sm, 改用 bg-slate-50/80, transition-colors
-              // 這樣做可以防止 lane 建立獨立的 stacking context，讓卡片的 z-20 能突破出來
-              className="flex flex-col w-80 bg-slate-50/80 rounded-xl border border-slate-200 shadow-sm flex-shrink-0 transition-colors hover:border-slate-300"
+        {/* Swimlane Grid - 使用 CSS Subgrid 讓所有泳道共用同一組 row，確保跨部門連線一定由上而下 */}
+        <div
+          className="grid min-h-full min-w-max p-8 gap-8 relative"
+          style={{
+            gridTemplateColumns: `repeat(${lanes.length}, 20rem) 4rem`,
+            gridTemplateRows: `auto repeat(${Math.max(occupiedLevels.length, 1)}, auto) auto`,
+          }}
+        >
+
+          {lanes.map((lane, laneIdx) => (
+            <div
+              key={lane.id}
+              className="grid bg-slate-50/80 rounded-xl border border-slate-200 shadow-sm transition-colors hover:border-slate-300"
+              style={{
+                gridColumn: laneIdx + 1,
+                gridRow: '1 / -1',
+                gridTemplateRows: 'subgrid',
+              }}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, lane.id)}
             >
-              {/* Lane Header */}
-              <div className={`p-4 border-b border-slate-100 rounded-t-xl flex justify-between items-center group ${lane.color.replace('text-', 'bg-').replace('border-', '').split(' ')[0]} bg-opacity-20`}>
+              {/* Lane Header: 第一列 */}
+              <div
+                style={{ gridRow: 1 }}
+                className={`p-4 border-b border-slate-100 rounded-t-xl flex justify-between items-center group ${lane.color.replace('text-', 'bg-').replace('border-', '').split(' ')[0]} bg-opacity-20`}
+              >
                 <h3 className={`font-bold ${lane.color.split(' ').pop()}`}>{lane.title}</h3>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
+                  <button
                     onClick={() => {
                         const newTitle = prompt('修改部門名稱', lane.title);
                         if(newTitle) setLanes(lanes.map(l => l.id === lane.id ? {...l, title: newTitle} : l));
@@ -520,60 +604,77 @@ const App = () => {
                 </div>
               </div>
 
-              {/* Lane Content (Nodes) */}
-              <div className="flex-1 p-4 flex flex-col gap-10 min-h-[400px]">
-                {nodes
-                  .filter(n => n.laneId === lane.id)
-                  .sort((a, b) => a.rank - b.rank)
-                  .map((node, index) => (
-                    <div
-                      key={node.id}
-                      id={node.id}
-                      draggable={!isConnectMode}
-                      onDragStart={(e) => handleDragStart(e, node.id)}
-                      onDrop={(e) => {
-                        e.stopPropagation(); 
-                        handleDrop(e, lane.id, index);
-                      }}
-                      onClick={() => handleNodeClick(node)}
-                      // 卡片：z-20 (最上層)
-                      className={`
-                        relative p-4 rounded-lg border-2 shadow-sm transition-all cursor-pointer group bg-white z-20
-                        ${isConnectMode && connectSource?.id === node.id ? 'border-indigo-500 ring-2 ring-indigo-200 scale-105 z-30' : 'border-slate-200 hover:border-indigo-300 hover:shadow-md'}
-                        ${isConnectMode && connectSource && connectSource.id !== node.id ? 'hover:ring-2 hover:ring-green-200 hover:border-green-400' : ''}
-                      `}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">STEP {index + 1}</span>
-                         {isConnectMode && connectSource?.id === node.id && (
-                           <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">來源</span>
-                         )}
-                      </div>
-                      
-                      <h4 className="font-bold text-slate-800 mb-1">{node.title}</h4>
-                      <p className="text-sm text-slate-500 line-clamp-2">{node.content}</p>
-
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <MoreHorizontal size={16} className="text-slate-400" />
-                      </div>
-
-                    </div>
-                  ))}
-                  
-                  <button 
-                    onClick={() => addNode(lane.id)}
-                    className="mt-6 py-3 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+              {/* Level slots：每個 level 對應所有泳道共用的一列 */}
+              {(occupiedLevels.length > 0 ? occupiedLevels : [0]).map((level, idx) => {
+                const slotNodes = nodes
+                  .filter(n => n.laneId === lane.id && nodeLevels.get(n.id) === level)
+                  .sort((a, b) => a.rank - b.rank);
+                return (
+                  <div
+                    key={`slot-${lane.id}-${level}`}
+                    style={{ gridRow: idx + 2 }}
+                    className="px-4 py-2 flex flex-col gap-4"
                   >
-                    <Plus size={16} />
-                    加入步驟
-                  </button>
+                    {slotNodes.map((node) => (
+                      <div
+                        key={node.id}
+                        id={node.id}
+                        draggable={!isConnectMode}
+                        onDragStart={(e) => handleDragStart(e, node.id)}
+                        onDrop={(e) => {
+                          e.stopPropagation();
+                          handleDrop(e, lane.id, node.rank);
+                        }}
+                        onClick={() => handleNodeClick(node)}
+                        // 卡片：z-20 (最上層)
+                        className={`
+                          relative p-4 rounded-lg border-2 shadow-sm transition-all cursor-pointer group bg-white z-20
+                          ${isConnectMode && connectSource?.id === node.id ? 'border-indigo-500 ring-2 ring-indigo-200 scale-105 z-30' : 'border-slate-200 hover:border-indigo-300 hover:shadow-md'}
+                          ${isConnectMode && connectSource && connectSource.id !== node.id ? 'hover:ring-2 hover:ring-green-200 hover:border-green-400' : ''}
+                        `}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">STEP {level + 1}</span>
+                           {isConnectMode && connectSource?.id === node.id && (
+                             <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold">來源</span>
+                           )}
+                        </div>
+
+                        <h4 className="font-bold text-slate-800 mb-1">{node.title}</h4>
+                        <p className="text-sm text-slate-500 line-clamp-2">{node.content}</p>
+
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                           <MoreHorizontal size={16} className="text-slate-400" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+
+              {/* Add Step：最後一列 */}
+              <div
+                style={{ gridRow: Math.max(occupiedLevels.length, 1) + 2 }}
+                className="px-4 pb-4 pt-2"
+              >
+                <button
+                  onClick={() => addNode(lane.id)}
+                  className="w-full py-3 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2 text-sm font-medium"
+                >
+                  <Plus size={16} />
+                  加入步驟
+                </button>
               </div>
             </div>
           ))}
 
-          <button 
+          <button
             onClick={addLane}
-            className="w-16 flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all flex-shrink-0"
+            style={{
+              gridColumn: lanes.length + 1,
+              gridRow: '1 / -1',
+            }}
+            className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-300 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all"
           >
             <Plus size={24} />
           </button>
