@@ -31,25 +31,37 @@ const App = () => {
   ]);
 
   const [nodes, setNodes] = useState([
-    { id: 'node-1', laneId: 'dept-1', title: '客戶需求', content: '接收來自客戶的初步需求信件', rank: 0 },
-    { id: 'node-2', laneId: 'dept-2', title: '技術評估', content: '評估開發可行性與時程', rank: 0 },
-    { id: 'node-3', laneId: 'dept-1', title: '報價單製作', content: '根據評估結果製作報價單', rank: 1 },
-    { id: 'node-4', laneId: 'dept-3', title: '主管審核', content: '審核報價與合約條款', rank: 0 },
+    { id: 'node-1', laneId: 'dept-1', title: '客戶需求', content: '接收來自客戶的初步需求信件', rank: 0, type: 'process', dataIds: ['asset-1'] },
+    { id: 'node-2', laneId: 'dept-2', title: '技術評估', content: '評估開發可行性與時程', rank: 0, type: 'process', dataIds: [] },
+    { id: 'node-3', laneId: 'dept-1', title: '報價單製作', content: '根據評估結果製作報價單', rank: 1, type: 'process', dataIds: ['asset-2'] },
+    { id: 'node-4', laneId: 'dept-3', title: '主管審核', content: '是否通過？', rank: 0, type: 'decision', dataIds: [] },
   ]);
 
   const [connections, setConnections] = useState([
-    { from: 'node-1', to: 'node-2', id: 'c1' }, // 橫向
-    { from: 'node-1', to: 'node-3', id: 'c-vertical-test' }, // 垂直測試
-    { from: 'node-2', to: 'node-3', id: 'c2' }, // 橫向回流
-    { from: 'node-3', to: 'node-4', id: 'c3' }, // 橫向
+    { from: 'node-1', to: 'node-2', id: 'c1', label: '' }, // 橫向
+    { from: 'node-1', to: 'node-3', id: 'c-vertical-test', label: '' }, // 垂直測試
+    { from: 'node-2', to: 'node-3', id: 'c2', label: '' }, // 橫向回流
+    { from: 'node-3', to: 'node-4', id: 'c3', label: '' }, // 橫向
   ]);
+
+  // Data Assets (Feature 1)
+  const [dataAssets, setDataAssets] = useState([
+    { id: 'asset-1', name: '客戶需求書', color: 'red' },
+    { id: 'asset-2', name: '技術規格書', color: 'blue' },
+    { id: 'asset-3', name: '報價模板', color: 'yellow' },
+  ]);
+  const [newAssetName, setNewAssetName] = useState('');
+
+  // Connection label inline editing (Feature 2a)
+  const [editingLabelFor, setEditingLabelFor] = useState(null);
+  const [labelDraft, setLabelDraft] = useState('');
 
   // UI State
   const [selectedNode, setSelectedNode] = useState(null);
   const [isConnectMode, setIsConnectMode] = useState(false);
   const [connectSource, setConnectSource] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editFormData, setEditFormData] = useState({ title: '', content: '' });
+  const [editFormData, setEditFormData] = useState({ title: '', content: '', type: 'process' });
   
   // Settings State
   const [showSettings, setShowSettings] = useState(false);
@@ -215,7 +227,12 @@ const App = () => {
           pathData = `M ${startX} ${startY} C ${startX} ${startY + controlDistStart}, ${cp2X} ${endY - controlDistEnd}, ${endX} ${endY}`;
       }
 
-      return { id: conn.id, path: pathData };
+      return {
+        id: conn.id,
+        path: pathData,
+        midX: (startX + endX) / 2,
+        midY: (startY + endY) / 2,
+      };
     }).filter(Boolean);
 
     setLines(newLines);
@@ -271,9 +288,58 @@ const App = () => {
       laneId,
       title: '新流程',
       content: '請輸入流程描述...',
-      rank: nodes.filter(n => n.laneId === laneId).length
+      rank: nodes.filter(n => n.laneId === laneId).length,
+      type: 'process',
+      dataIds: [],
     };
     setNodes([...nodes, newNode]);
+  };
+
+  // --- Data Assets (Feature 1) ---
+  const addAsset = () => {
+    const name = newAssetName.trim();
+    if (!name) return;
+    const color = LANE_COLOR_KEYS[dataAssets.length % LANE_COLOR_KEYS.length];
+    setDataAssets([...dataAssets, { id: `asset-${Date.now()}`, name, color }]);
+    setNewAssetName('');
+  };
+
+  const deleteAsset = (assetId) => {
+    setDataAssets(dataAssets.filter(a => a.id !== assetId));
+    setNodes(nodes.map(n => ({
+      ...n,
+      dataIds: (n.dataIds || []).filter(id => id !== assetId),
+    })));
+  };
+
+  const addAssetToNode = (nodeId, assetId) => {
+    setNodes(nodes.map(n => n.id === nodeId
+      ? { ...n, dataIds: Array.from(new Set([...(n.dataIds || []), assetId])) }
+      : n
+    ));
+  };
+
+  const removeAssetFromNode = (nodeId, assetId) => {
+    setNodes(nodes.map(n => n.id === nodeId
+      ? { ...n, dataIds: (n.dataIds || []).filter(id => id !== assetId) }
+      : n
+    ));
+  };
+
+  // --- Connection labels (Feature 2a) ---
+  const beginEditLabel = (connectionId) => {
+    const conn = connections.find(c => c.id === connectionId);
+    setLabelDraft(conn?.label || '');
+    setEditingLabelFor(connectionId);
+  };
+
+  const commitLabel = () => {
+    if (editingLabelFor) {
+      const trimmed = labelDraft.trim();
+      setConnections(connections.map(c => c.id === editingLabelFor ? { ...c, label: trimmed } : c));
+    }
+    setEditingLabelFor(null);
+    setLabelDraft('');
   };
 
   const handleNodeClick = (node) => {
@@ -286,10 +352,11 @@ const App = () => {
         } else {
           const exists = connections.some(c => c.from === connectSource.id && c.to === node.id);
           if (!exists) {
-            setConnections([...connections, { 
-              from: connectSource.id, 
-              to: node.id, 
-              id: `c-${Date.now()}` 
+            setConnections([...connections, {
+              from: connectSource.id,
+              to: node.id,
+              id: `c-${Date.now()}`,
+              label: '',
             }]);
           }
           setConnectSource(null);
@@ -297,7 +364,7 @@ const App = () => {
       }
     } else {
       setSelectedNode(node);
-      setEditFormData({ title: node.title, content: node.content });
+      setEditFormData({ title: node.title, content: node.content, type: node.type || 'process' });
       setIsEditing(true);
     }
   };
@@ -339,6 +406,8 @@ const App = () => {
 
   const handleDrop = (e, targetLaneId, targetRank = null) => {
     e.preventDefault();
+    // asset drops on empty lane areas are ignored (only cards accept assets)
+    if (e.dataTransfer && e.dataTransfer.getData('application/x-asset')) return;
     if (!draggedNodeId) return;
 
     const draggedNode = nodes.find(n => n.id === draggedNodeId);
@@ -473,6 +542,9 @@ const App = () => {
         )}
       </header>
 
+      {/* Workspace + Sidebar wrapper */}
+      <div className="flex-1 flex overflow-hidden">
+
       {/* Main Workspace */}
       <main className="flex-1 overflow-auto relative" ref={containerRef}>
         
@@ -554,17 +626,63 @@ const App = () => {
 
           {lines.map(line => {
             const hovered = hoveredConnectionId === line.id;
+            const conn = connections.find(c => c.id === line.id);
+            const hasLabel = conn?.label && conn.label.length > 0;
+            const isEditingThis = editingLabelFor === line.id;
             return (
-              <path
-                key={line.id}
-                d={line.path}
-                stroke={hovered ? '#ef4444' : lineColor}
-                strokeWidth={hovered ? 3 : 2}
-                fill="none"
-                markerEnd={`url(#${hovered ? markerHoverId : markerId})`}
-                style={{ opacity: hovered ? 0.95 : 0.45 }}
-                className="transition-all duration-200 ease-out drop-shadow-sm pointer-events-none"
-              />
+              <React.Fragment key={line.id}>
+                <path
+                  d={line.path}
+                  stroke={hovered ? '#ef4444' : lineColor}
+                  strokeWidth={hovered ? 3 : 2}
+                  fill="none"
+                  markerEnd={`url(#${hovered ? markerHoverId : markerId})`}
+                  style={{ opacity: hovered ? 0.95 : 0.45 }}
+                  className="transition-all duration-200 ease-out drop-shadow-sm pointer-events-none"
+                />
+                {/* 連線標籤 (Feature 2a) — 用 foreignObject 內嵌 HTML 便於輸入 */}
+                <foreignObject
+                  x={(line.midX ?? 0) - 56}
+                  y={(line.midY ?? 0) - 16}
+                  width="112"
+                  height="32"
+                  style={{ overflow: 'visible', pointerEvents: 'none' }}
+                >
+                  <div
+                    xmlns="http://www.w3.org/1999/xhtml"
+                    className="w-full h-full flex items-center justify-center"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    {isEditingThis ? (
+                      <input
+                        autoFocus
+                        value={labelDraft}
+                        onChange={(e) => setLabelDraft(e.target.value)}
+                        onBlur={commitLabel}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { e.preventDefault(); commitLabel(); }
+                          if (e.key === 'Escape') { setEditingLabelFor(null); setLabelDraft(''); }
+                        }}
+                        placeholder="Y / N"
+                        className="px-2 py-0.5 border-2 border-[#121212] bg-[#F0C020] text-xs font-black uppercase tracking-widest text-center w-20 outline-none"
+                        style={{ pointerEvents: 'auto' }}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); beginEditLabel(line.id); }}
+                        className={`px-2 py-0.5 border-2 border-[#121212] text-[10px] font-black uppercase tracking-widest transition-all
+                          ${hasLabel
+                            ? 'bg-[#F0C020] text-[#121212] shadow-[2px_2px_0px_0px_#121212] hover:-translate-y-0.5'
+                            : 'bg-white text-[#121212]/40 hover:text-[#121212] hover:bg-[#F0C020]'}`}
+                        style={{ pointerEvents: 'auto' }}
+                      >
+                        {hasLabel ? conn.label : '+'}
+                      </button>
+                    )}
+                  </div>
+                </foreignObject>
+              </React.Fragment>
             );
           })}
         </svg>
@@ -630,21 +748,82 @@ const App = () => {
                   >
                     {slotNodes.map((node, nodeIdx) => {
                       const shapeIdx = (level + nodeIdx) % 3;
+                      const isDecision = node.type === 'decision';
+                      const nodeDataIds = node.dataIds || [];
+                      const isSource = isConnectMode && connectSource?.id === node.id;
+
+                      const commonHandlers = {
+                        draggable: !isConnectMode,
+                        onDragStart: (e) => handleDragStart(e, node.id),
+                        onDragOver: handleDragOver,
+                        onDrop: (e) => {
+                          e.stopPropagation();
+                          const assetId = e.dataTransfer.getData('application/x-asset');
+                          if (assetId) {
+                            addAssetToNode(node.id, assetId);
+                            return;
+                          }
+                          handleDrop(e, lane.id, node.rank);
+                        },
+                        onClick: () => handleNodeClick(node),
+                      };
+
+                      // Decision node — Bauhaus 菱形
+                      if (isDecision) {
+                        return (
+                          <div
+                            key={node.id}
+                            id={node.id}
+                            {...commonHandlers}
+                            className={`relative w-[170px] h-[170px] mx-auto cursor-pointer group z-20 transition-all
+                              ${isSource ? 'z-30 scale-105' : 'hover:-translate-y-1'}
+                            `}
+                          >
+                            <div
+                              className={`absolute inset-3 rotate-45 border-2 border-[#121212] transition-all
+                                ${isSource
+                                  ? 'bg-[#F0C020] shadow-[6px_6px_0px_0px_#D02020]'
+                                  : 'bg-white shadow-[4px_4px_0px_0px_#121212] group-hover:shadow-[6px_6px_0px_0px_#121212]'}
+                              `}
+                            />
+                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-8">
+                              <span className="text-[9px] font-black text-[#121212] uppercase tracking-[0.2em] bg-[#F0C020] border-2 border-[#121212] px-1.5 py-0.5 mb-1.5">STEP {level + 1}</span>
+                              <h4 className="font-black text-[#121212] leading-tight text-sm line-clamp-3">{node.title}</h4>
+                            </div>
+                            {isSource && (
+                              <span className="absolute top-0 right-0 text-[10px] bg-[#D02020] text-white border-2 border-[#121212] px-1.5 py-0.5 font-black uppercase tracking-widest z-10">來源</span>
+                            )}
+                            {nodeDataIds.length > 0 && (
+                              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 flex gap-1 bg-white border-2 border-[#121212] px-1.5 py-0.5">
+                                {nodeDataIds.slice(0, 4).map(id => {
+                                  const a = dataAssets.find(x => x.id === id);
+                                  if (!a) return null;
+                                  return (
+                                    <div
+                                      key={id}
+                                      title={a.name}
+                                      className="w-2.5 h-2.5 border border-[#121212]"
+                                      style={{ backgroundColor: LANE_PALETTES[a.color]?.bg }}
+                                    />
+                                  );
+                                })}
+                                {nodeDataIds.length > 4 && <span className="text-[9px] font-black leading-none">+{nodeDataIds.length - 4}</span>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      // Process node — 標準方塊卡片
                       return (
                       <div
                         key={node.id}
                         id={node.id}
-                        draggable={!isConnectMode}
-                        onDragStart={(e) => handleDragStart(e, node.id)}
-                        onDrop={(e) => {
-                          e.stopPropagation();
-                          handleDrop(e, lane.id, node.rank);
-                        }}
-                        onClick={() => handleNodeClick(node)}
+                        {...commonHandlers}
                         // 卡片：z-20 (最上層)
                         className={`
                           relative p-4 pr-6 rounded-none border-2 border-[#121212] transition-all cursor-pointer group bg-white z-20
-                          ${isConnectMode && connectSource?.id === node.id
+                          ${isSource
                             ? 'bg-[#F0C020] shadow-[6px_6px_0px_0px_#D02020] z-30'
                             : 'shadow-[4px_4px_0px_0px_#121212] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_#121212]'}
                           ${isConnectMode && connectSource && connectSource.id !== node.id ? 'hover:bg-[#F0C020]/40' : ''}
@@ -672,13 +851,39 @@ const App = () => {
 
                         <div className="flex justify-between items-start mb-2 gap-2">
                            <span className="text-[10px] font-black text-[#121212] uppercase tracking-[0.2em] bg-[#F0C020] border-2 border-[#121212] px-1.5 py-0.5">STEP {level + 1}</span>
-                           {isConnectMode && connectSource?.id === node.id && (
+                           {isSource && (
                              <span className="text-[10px] bg-[#D02020] text-white border-2 border-[#121212] px-1.5 py-0.5 font-black uppercase tracking-widest">來源</span>
                            )}
                         </div>
 
                         <h4 className="font-black text-[#121212] mb-1 leading-tight">{node.title}</h4>
                         <p className="text-sm text-[#121212]/75 line-clamp-2 font-medium leading-relaxed">{node.content}</p>
+
+                        {/* Data asset chips */}
+                        {nodeDataIds.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-3 pt-2 border-t-2 border-[#121212]/15">
+                            {nodeDataIds.map(id => {
+                              const a = dataAssets.find(x => x.id === id);
+                              if (!a) return null;
+                              const ap = LANE_PALETTES[a.color] || LANE_PALETTES.yellow;
+                              return (
+                                <span
+                                  key={id}
+                                  className="inline-flex items-center gap-1 pl-1.5 pr-0.5 py-0.5 border-2 border-[#121212] text-[10px] font-bold uppercase tracking-wider"
+                                  style={{ backgroundColor: ap.bg, color: ap.text }}
+                                >
+                                  <span className="truncate max-w-[80px]">{a.name}</span>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); removeAssetFromNode(node.id, id); }}
+                                    className="w-3.5 h-3.5 flex items-center justify-center hover:bg-[#121212] hover:text-white transition-colors"
+                                  >
+                                    <X size={9} strokeWidth={3} />
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
 
                         <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                            <MoreHorizontal size={14} className="text-[#121212]" strokeWidth={3} />
@@ -719,6 +924,77 @@ const App = () => {
           </button>
         </div>
       </main>
+
+      {/* Data Assets Sidebar (Feature 1) */}
+      <aside className="w-72 bg-white border-l-4 border-[#121212] flex flex-col overflow-hidden flex-shrink-0">
+        <div className="bg-[#F0C020] border-b-4 border-[#121212] p-4">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-[#121212] flex items-center justify-center">
+              <div className="w-3 h-3 bg-[#F0C020]" />
+            </div>
+            <h2 className="font-black uppercase tracking-tighter text-lg leading-none">資料庫</h2>
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-widest mt-2">拖曳卡片以關聯</p>
+        </div>
+
+        <div className="p-4 border-b-2 border-[#121212]">
+          <label className="block text-[10px] font-bold text-[#121212] uppercase tracking-widest mb-2">新增資料項</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newAssetName}
+              onChange={(e) => setNewAssetName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') addAsset(); }}
+              placeholder="資料名稱..."
+              className="flex-1 min-w-0 px-3 py-2 border-2 border-[#121212] rounded-none bg-white font-medium text-sm focus:outline-none focus:shadow-[3px_3px_0px_0px_#1040C0] transition-all"
+            />
+            <button
+              onClick={addAsset}
+              className="w-10 h-10 flex-shrink-0 bg-[#D02020] border-2 border-[#121212] text-white shadow-[3px_3px_0px_0px_#121212] hover:bg-[#D02020]/90 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all flex items-center justify-center"
+            >
+              <Plus size={18} strokeWidth={3} />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          {dataAssets.length === 0 ? (
+            <div className="text-center text-[10px] font-bold text-[#121212]/50 uppercase tracking-widest py-8 border-2 border-dashed border-[#121212]/30">
+              尚無資料項 / 請新增
+            </div>
+          ) : (
+            dataAssets.map(asset => {
+              const ap = LANE_PALETTES[asset.color] || LANE_PALETTES.yellow;
+              return (
+                <div
+                  key={asset.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('application/x-asset', asset.id);
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
+                  className="flex items-center gap-2 p-2 pr-1 bg-white border-2 border-[#121212] shadow-[3px_3px_0px_0px_#121212] hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#121212] cursor-grab active:cursor-grabbing transition-all"
+                >
+                  <div
+                    className="w-6 h-6 border-2 border-[#121212] flex-shrink-0"
+                    style={{ backgroundColor: ap.bg }}
+                  />
+                  <span className="flex-1 text-sm font-bold text-[#121212] truncate">{asset.name}</span>
+                  <button
+                    onClick={() => deleteAsset(asset.id)}
+                    className="w-7 h-7 flex-shrink-0 flex items-center justify-center text-[#121212] hover:bg-[#D02020] hover:text-white transition-all"
+                    title="刪除資料項"
+                  >
+                    <Trash2 size={13} strokeWidth={2.5} />
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </aside>
+
+      </div>{/* /Workspace + Sidebar wrapper */}
 
       {/* Delete Connection Confirmation Modal */}
       {connectionToDelete && (
@@ -786,6 +1062,21 @@ const App = () => {
                   className="w-full px-4 py-2 border-2 border-[#121212] rounded-none bg-white font-medium focus:outline-none focus:shadow-[3px_3px_0px_0px_#1040C0] transition-all resize-none"
                 />
               </div>
+
+              {/* 決策節點 toggle (Feature 2b) */}
+              <label className="flex items-center gap-3 p-3 bg-[#F0F0F0] border-2 border-[#121212] cursor-pointer hover:bg-[#F0C020]/30 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={editFormData.type === 'decision'}
+                  onChange={(e) => setEditFormData({ ...editFormData, type: e.target.checked ? 'decision' : 'process' })}
+                  className="w-4 h-4 accent-[#D02020]"
+                />
+                <div className="flex-1">
+                  <div className="text-xs font-black text-[#121212] uppercase tracking-widest">決策節點（菱形）</div>
+                  <div className="text-[10px] text-[#121212]/70 font-medium mt-0.5">啟用後此節點將以菱形顯示，用於 Y/N 分岔</div>
+                </div>
+                <div className="w-6 h-6 border-2 border-[#121212] rotate-45 bg-[#F0C020]" />
+              </label>
 
               <div className="flex items-center justify-between pt-4 mt-2 border-t-2 border-[#121212]">
                 <button
